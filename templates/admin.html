@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - All Tickets</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #222;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            text-align: left;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        
+        .status-select {
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-weight: bold;
+            font-size: 0.9em;
+            cursor: pointer;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-position: right 10px center;
+            background-repeat: no-repeat;
+            background-size: 10px;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%23333" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+            padding-right: 30px;
+        }
+        
+        .status-New { background-color: #dc3545; color: white; }
+        .status-In-Progress { background-color: #ffc107; color: #333; }
+        .status-Resolved { background-color: #28a745; color: white; }
+
+        #loading {
+            text-align: center;
+            font-size: 1.2em;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Dashboard</h1>
+        
+        <table id="tickets-table">
+            <thead>
+                <tr>
+                    <th>Ticket ID</th>
+                    <th>Date</th>
+                    <th>User Email</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                    <th>Subject</th>
+                </tr>
+            </thead>
+            <tbody id="tickets-tbody">
+                </tbody>
+        </table>
+        <div id="loading">Loading tickets...</div>
+    </div>
+
+    <script>
+        // --- Function to update the status ---
+        async function updateStatus(selectElement, ticketDbId) {
+            const newStatus = selectElement.value;
+            selectElement.className = 'status-select';
+            selectElement.classList.add(`status-${newStatus.replace(' ', '-')}`);
+            
+            try {
+                // NOTE: We are using a relative URL here, which is why
+                // this page MUST be loaded from http://127.0.0.1:5000
+                const response = await fetch(`/api/ticket/${ticketDbId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.statusText}`);
+                }
+                
+                const updatedTicket = await response.json();
+                console.log('Status updated:', updatedTicket.ticket_id, 'is now', updatedTicket.status);
+
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Failed to update status. Please try again.');
+            }
+        }
+
+        // --- Function to format the date ---
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // --- UPDATED: Function to load and display tickets ---
+        async function loadTickets() {
+            const tbody = document.getElementById('tickets-tbody');
+            const loadingDiv = document.getElementById('loading');
+            
+            try {
+                // This URL is absolute, which is fine
+                const response = await fetch('http://127.0.0.1:5000/api/tickets');
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const tickets = await response.json();
+                
+                tbody.innerHTML = '';
+                loadingDiv.style.display = 'none';
+
+                if (tickets.length === 0) {
+                    loadingDiv.textContent = 'No tickets found.';
+                    loadingDiv.style.display = 'block';
+                    return;
+                }
+
+                tickets.forEach(ticket => {
+                    const row = tbody.insertRow();
+                    
+                    // --- THIS IS THE CORRECTED ORDER ---
+                    row.insertCell().textContent = ticket.ticket_id;
+                    row.insertCell().textContent = formatDate(ticket.created_at);
+                    row.insertCell().textContent = ticket.user_email;
+                    row.insertCell().textContent = ticket.department;
+
+                    // Create status cell in the correct position
+                    const statusCell = row.insertCell();
+                    const statusSelect = document.createElement('select');
+                    statusSelect.className = `status-select status-${ticket.status.replace(' ', '-')}`;
+                    statusSelect.onchange = () => updateStatus(statusSelect, ticket.id);
+                    
+                    ['New', 'In Progress', 'Resolved'].forEach(status => {
+                        const option = document.createElement('option');
+                        option.value = status;
+                        option.textContent = status;
+                        if (ticket.status === status) {
+                            option.selected = true;
+                        }
+                        statusSelect.appendChild(option);
+                    });
+                    statusCell.appendChild(statusSelect);
+
+                    // Add subject cell at the end
+                    row.insertCell().textContent = ticket.subject;
+                    // --- END OF CORRECTION ---
+                });
+
+            } catch (error) {
+                console.error('Error loading tickets:', error);
+                loadingDiv.textContent = 'Failed to load tickets. See console for details.';
+                loadingDiv.style.display = 'block';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadTickets);
+    </script>
+</body>
+</html>

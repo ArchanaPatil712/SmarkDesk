@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit a Query</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f7f6;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box; /* Important */
+            font-size: 16px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #response-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Submit a Query</h1>
+        <form id="query-form">
+            <div class="form-group">
+                <label for="email">Your Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" name="subject" required>
+            </div>
+            <div class="form-group">
+                <label for="body">Your Query</label>
+                <textarea id="body" name="body" required></textarea>
+            </div>
+            <button type="submit">Submit Query</button>
+        </form>
+        <div id="response-message" style="display: none;"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('query-form');
+        const responseDiv = document.getElementById('response-message');
+
+        form.addEventListener('submit', async function(event) {
+            // Prevent the default form submission which reloads the page
+            event.preventDefault();
+
+            // Get the data from the form fields
+            const formData = new FormData(form);
+            const data = {
+                email: formData.get('email'),
+                subject: formData.get('subject'),
+                body: formData.get('body')
+            };
+
+            try {
+                // Send the data to the Flask backend using the fetch API
+                const response = await fetch('http://127.0.0.1:5000/submit-query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Display a success message
+                    responseDiv.textContent = `${result.message} Your Ticket ID is ${result.ticket_id}. It has been routed to ${result.routed_to}.`;
+                    responseDiv.className = 'success';
+                    responseDiv.style.display = 'block';
+                    form.reset(); // Clear the form fields
+                } else {
+                    // Display an error message from the server
+                    throw new Error(result.error || 'Something went wrong.');
+                }
+            } catch (error) {
+                // Display a network or other error message
+                responseDiv.textContent = `Error: ${error.message}`;
+                responseDiv.className = 'error';
+                responseDiv.style.display = 'block';
+            }
+        });
+    </script>
+
+</body>
+</html>
