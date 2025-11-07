@@ -9,7 +9,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_basicauth import BasicAuth
 
 # --- SETUP: Hardcoded credentials ---
-# PASTE YOUR 16-CHARACTER APP PASSWORD HERE
 SENDER_EMAIL = "patilarchana1911@gmail.com"
 SENDER_PASSWORD = "eavawktcnwolnvvd"
 
